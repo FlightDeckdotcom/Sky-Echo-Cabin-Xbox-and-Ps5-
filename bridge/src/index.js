@@ -22,8 +22,22 @@ function checkSecret(req){ return !SECRET || SECRET==='change_me' || req.headers
 function sendToSession(sessionId, payload){ const set=sessions.get(sessionId||DEFAULT_SESSION_ID); if(!set) return 0; const msg=JSON.stringify(payload); let n=0; for(const ws of set){ if(ws.readyState===1){ ws.send(msg); n++; }} return n; }
 function getState(guildId){ if(!guildState.has(guildId)) guildState.set(guildId,{sessionId:DEFAULT_SESSION_ID,armed:false,pttMode:process.env.DISCORD_PTT_MODE||'hybrid',player:null,connection:null,boundUserId:null,speakingSince:null,cooldownUntil:0}); return guildState.get(guildId); }
 
-const app=express(); app.use(express.json({limit:'10mb'}));
-app.get('/health',(req,res)=>res.json({ok:true,service:'SkyEcho v4 Hybrid Console PTT Bridge'}));
+const app=express();
+// CORS fix for SkyEcho web app -> Render bridge POST requests.
+// The browser preflights because we send JSON + x-bridge-secret.
+app.use((req,res,next)=>{
+  const origin=req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-bridge-secret');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  if(req.method==='OPTIONS') return res.status(204).end();
+  next();
+});
+app.use(express.json({limit:'10mb'}));
+app.get('/',(req,res)=>res.json({ok:true,service:'SkyEcho v4.1 Hybrid Console PTT Bridge',status:'live'}));
+app.get('/health',(req,res)=>res.json({ok:true,service:'SkyEcho v4.1 Hybrid Console PTT Bridge'}));
 app.post('/bridge/event',async(req,res)=>{ if(!checkSecret(req)) return res.status(401).json({ok:false,error:'bad secret'}); const body=req.body||{}; if(body.type==='play_text'){ await playTextToAll(body.text||'', body.role||'atc'); } if(body.type==='armed'||body.type==='config'){ for(const st of guildState.values()){ if(body.sessionId) st.sessionId=body.sessionId; if(typeof body.armed==='boolean') st.armed=body.armed; if(body.pttMode) st.pttMode=body.pttMode; } } res.json({ok:true}); });
 
 const server=http.createServer(app);

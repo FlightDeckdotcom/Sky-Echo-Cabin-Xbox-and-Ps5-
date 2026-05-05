@@ -1,6 +1,6 @@
 {
-  "name": "skyecho-v4-hybrid-console-ptt-bridge",
-  "version": "4.0.0",
+  "name": "skyecho-v4-1-hybrid-console-ptt-bridge",
+  "version": "4.1.0",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js"
